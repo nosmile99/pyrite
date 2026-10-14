@@ -43,9 +43,7 @@ def mode_env():
         )
         db = PyriteDB(tmpdir / "index.db")
         svc = KBService(config, db)
-        svc.create_entry(
-            "rs", "hello", "Hello World", body="x", entry_type="note", tags=["greet"]
-        )
+        svc.create_entry("rs", "hello", "Hello World", body="x", entry_type="note", tags=["greet"])
         yield {"config": config, "db": db, "tmpdir": tmpdir}
         db.close()
 
@@ -61,18 +59,14 @@ class TestUnknownModeRefused:
     def test_service_discover_neighbors_raises(self, mode_env):
         svc = LinkDiscoveryService(mode_env["config"], mode_env["db"])
         with pytest.raises(ValidationError) as exc_info:
-            svc.discover_neighbors(
-                entry_id="hello", kb_name="rs", mode="zzz", readable_kbs=None
-            )
+            svc.discover_neighbors(entry_id="hello", kb_name="rs", mode="zzz", readable_kbs=None)
         for mode in VALID_MODES:
             assert mode in str(exc_info.value)
 
     def test_service_batch_suggest_raises(self, mode_env):
         svc = LinkDiscoveryService(mode_env["config"], mode_env["db"])
         with pytest.raises(ValidationError):
-            svc.batch_suggest(
-                source_kb="rs", target_kb="rs", mode="zzz", readable_kbs=None
-            )
+            svc.batch_suggest(source_kb="rs", target_kb="rs", mode="zzz", readable_kbs=None)
 
     def test_valid_modes_still_run(self, mode_env):
         svc = LinkDiscoveryService(mode_env["config"], mode_env["db"])
@@ -90,8 +84,7 @@ class TestUnknownModeRefused:
         with _patch_config(mode_env):
             result = runner.invoke(
                 app,
-                ["links", "discover", "hello", "-k", "rs", "--mode", "zzz",
-                 "--format", "json"],
+                ["links", "discover", "hello", "-k", "rs", "--mode", "zzz", "--format", "json"],
             )
         assert result.exit_code == 1
         assert "VALIDATION_FAILED" in result.output
@@ -104,8 +97,18 @@ class TestUnknownModeRefused:
         with _patch_config(mode_env):
             result = runner.invoke(
                 app,
-                ["links", "batch-suggest", "--source-kb", "rs", "--target-kb", "rs",
-                 "--mode", "zzz", "--format", "json"],
+                [
+                    "links",
+                    "batch-suggest",
+                    "--source-kb",
+                    "rs",
+                    "--target-kb",
+                    "rs",
+                    "--mode",
+                    "zzz",
+                    "--format",
+                    "json",
+                ],
             )
         assert result.exit_code == 1
         assert "VALIDATION_FAILED" in result.output
