@@ -103,15 +103,16 @@ def zettel_inbox(
     db = PyriteDB(config.settings.index_path)
 
     try:
-        results = db.search("*", limit=500)
+        # list, not search: "*" is not a valid FTS5 query, so this raised
+        # sqlite3.OperationalError on every call (#866). The MCP tool
+        # `zettel_inbox` was fixed the same way (plugin.py).
+        results = db.list_entries(
+            kb_name=kb_name,
+            entry_type="zettel",
+            limit=500,
+        )
         fleeting = []
         for r in results:
-            if r.get("entry_type") != "zettel":
-                if kb_name and r.get("kb_name") != kb_name:
-                    continue
-                continue
-            if kb_name and r.get("kb_name") != kb_name:
-                continue
             # Check metadata for zettel_type and processing_stage
             meta = r.get("metadata") or {}
             if isinstance(meta, str):
@@ -193,15 +194,18 @@ def zettel_maturity(
     db = PyriteDB(config.settings.index_path)
 
     try:
-        results = db.search("*", limit=1000)
+        # list, not search: "*" is not a valid FTS5 query, so this raised
+        # sqlite3.OperationalError on every call (#866). The MCP tool
+        # `zettel_inbox` was fixed the same way (plugin.py).
+        results = db.list_entries(
+            kb_name=kb_name,
+            entry_type="zettel",
+            limit=1000,
+        )
         counts = {"seed": 0, "sapling": 0, "evergreen": 0, "unknown": 0}
         total = 0
 
         for r in results:
-            if r.get("entry_type") != "zettel":
-                continue
-            if kb_name and r.get("kb_name") != kb_name:
-                continue
             meta = r.get("metadata") or {}
             if isinstance(meta, str):
                 import json

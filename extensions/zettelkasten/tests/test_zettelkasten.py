@@ -626,3 +626,82 @@ class TestZettelNewGoesThroughPipeline:
 
         assert result.exit_code != 0, result.output
         assert "KB_NOT_FOUND" in result.output, result.output
+
+
+# =========================================================================
+# `zettel inbox` / `zettel maturity` list instead of searching (#866)
+# =========================================================================
+
+
+class TestZettelInboxAndMaturityListNotSearch:
+    """`zettel inbox` and `zettel maturity` used to call `db.search("*")`,
+    which is not a valid FTS5 query: both commands crashed on every call
+    with `sqlite3.OperationalError: unknown special query:`. The MCP tool
+    `zettel_inbox` had the same bug and was fixed by listing instead of
+    searching (plugin.py); the CLI copy was not. These tests pin the
+    list-based path through the real wiring (Typer + SQLite).
+    """
+
+    @pytest.fixture
+    def env(self, tmp_path):
+        from pyrite.config import KBConfig, PyriteConfig, Settings
+        from pyrite.storage.database import PyriteDB
+        from pyrite.storage.index import IndexManager
+
+        kb_path = tmp_path / "zettel-kb"
+        kb_path.mkdir()
+        (kb_path / "kb.yaml").write_text(
+            "name: zettel-kb\n"
+            "kb_type: zettelkasten\n"
+            "validation:\n"
+            "  enforce: true\n"
+            "types:\n"
+            "  zettel:\n"
+            "    optional: [zettel_type, maturity, source_ref, processing_stage]\n"
+            "    subdirectory: zettels/\n"
+        )
+        db_path = tmp_path / "index.db"
+        config = PyriteConfig(
+            knowledge_bases=[KBConfig(name="zettel-kb", path=kb_path, kb_type="zettelkasten")],
+            settings=Settings(index_path=db_path, auto_embed=False),
+        )
+        db = PyriteDB(db_path)
+        IndexManager(db, config).index_all()
+        db.close()
+        return {"config": config, "kb_path": kb_path, "db_path": db_path}
+
+    def _run(self, env, args):
+        from unittest.mock import patch
+
+        from pyrite_zettelkasten.cli import zettel_app
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+        with patch("pyrite_zettelkasten.cli.load_config", return_value=env["config"]):
+            return runner.invoke(zettel_app, args)
+
+    def test_inbox_lists_fleeting_notes(self, env):
+        result = self._run(env, ["new", "Fleeting Thought", "--kb", "zettel-kb"])
+        assert result.exit_code == 0, result.output
+
+        result = self._run(env, ["inbox", "--kb", "zettel-kb"])
+        assert result.exit_code == 0, result.output
+        assert "Fleeting Thought" in result.output, result.output
+
+    def test_inbox_spans_every_kb_without_a_flag(self, env):
+        result = self._run(env, ["new", "Fleeting Thought", "--kb", "zettel-kb"])
+        assert result.exit_code == 0, result.output
+
+        result = self._run(env, ["inbox"])
+        assert result.exit_code == 0, result.output
+        assert "Fleeting Thought" in result.output, result.output
+
+    def test_maturity_shows_distribution(self, env):
+        result = self._run(
+            env, ["new", "Permanent Record", "--kb", "zettel-kb", "--type", "permanent"]
+        )
+        assert result.exit_code == 0, result.output
+
+        result = self._run(env, ["maturity", "--kb", "zettel-kb"])
+        assert result.exit_code == 0, result.output
+        assert "Total zettels: 1" in result.output, result.output
