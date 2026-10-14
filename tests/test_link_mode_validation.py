@@ -48,6 +48,23 @@ def mode_env():
         db.close()
 
 
+@pytest.fixture
+def empty_env():
+    """One KB with no entries: batch_suggest must refuse a bad mode
+    before the (empty) source loop (#867 review follow-up)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        kb_path = tmpdir / "kb"
+        kb_path.mkdir()
+        kb = KBConfig(name="empty", path=kb_path, kb_type=KBType.GENERIC)
+        config = PyriteConfig(
+            knowledge_bases=[kb], settings=Settings(index_path=tmpdir / "index.db")
+        )
+        db = PyriteDB(tmpdir / "index.db")
+        yield {"config": config, "db": db, "tmpdir": tmpdir}
+        db.close()
+
+
 @contextlib.contextmanager
 def _patch_config(env):
     with patch("pyrite.cli.load_config", return_value=env["config"]):
@@ -67,6 +84,15 @@ class TestUnknownModeRefused:
         svc = LinkDiscoveryService(mode_env["config"], mode_env["db"])
         with pytest.raises(ValidationError):
             svc.batch_suggest(source_kb="rs", target_kb="rs", mode="zzz", readable_kbs=None)
+
+    def test_service_batch_suggest_refuses_before_empty_source_loop(self, empty_env):
+        # An empty source KB never reaches discover_neighbors, so the mode
+        # must be validated at the top of batch_suggest (#867 review).
+        svc = LinkDiscoveryService(empty_env["config"], empty_env["db"])
+        with pytest.raises(ValidationError) as exc_info:
+            svc.batch_suggest(source_kb="empty", target_kb="empty", mode="zzz", readable_kbs=None)
+        for mode in VALID_MODES:
+            assert mode in str(exc_info.value)
 
     def test_valid_modes_still_run(self, mode_env):
         svc = LinkDiscoveryService(mode_env["config"], mode_env["db"])

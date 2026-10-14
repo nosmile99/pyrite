@@ -302,8 +302,13 @@ class LinkDiscoveryService:
         For each entry in source_kb, runs discover_neighbors against target_kb,
         then deduplicates bidirectional matches and sorts by score. Targets
         with no body and no summary are left out unless `include_empty` (#200).
+
+        The mode is validated up front so an empty source KB refuses a bad
+        mode instead of silently returning [] (#867).
         """
         self._require_kbs(source_kb, target_kb)
+        _validate_mode(mode)
+
         from .kb_service import KBService
 
         svc = KBService(self.config, self.db)

@@ -1,0 +1,1 @@
+Unknown `--mode` values in link discovery (`keyword`, `semantic`, `hybrid`) are now validated at the top of `batch_suggest` as well as in `discover_neighbors`, so an empty source KB refuses the bad mode instead of silently returning `[]` (#867).
