@@ -1,1 +1,1 @@
-Unknown `--mode` values in link discovery (`keyword`, `semantic`, `hybrid`) are now validated at the top of `batch_suggest` as well as in `discover_neighbors`, so an empty source KB refuses the bad mode instead of silently returning `[]` (#867).
+- **`pyrite links discover` and `links batch-suggest` refuse an unknown `--mode` (#867).** They used to answer as keyword with exit 0. The CLI now exits 1, MCP returns a refusal and REST answers 422, each naming the three valid modes (`keyword`, `semantic`, `hybrid`).
