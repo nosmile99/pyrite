@@ -73,7 +73,7 @@ def _template_test_env(tmpdir: Path, config: PyriteConfig, template: str, builti
     kb_yaml = load_yaml((kb_path / "kb.yaml").read_text(encoding="utf-8"))
     assert "task" in kb_yaml["types"], f"{template}: kb.yaml does not declare the task type"
     assert (kb_path / "tasks").is_dir(), f"{template}: tasks/ directory not created"
-    return kb_name
+    return kb_name, kb_path
 
 
 @pytest.mark.cli
@@ -88,17 +88,20 @@ def test_task_create_works_in_fresh_kb(template, builtin_only):
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
         config = PyriteConfig(knowledge_bases=[], settings=Settings(index_path=tmpdir / "index.db"))
-        kb_name = _template_test_env(tmpdir, config, template, builtin_only)
+        kb_name, kb_path = _template_test_env(tmpdir, config, template, builtin_only)
 
         with patch("pyrite.cli.context.load_config", return_value=config):
             create = runner.invoke(
-                app, ["task", "create", "--title", "t", "-k", kb_name, "-f", "json"]
+                app, ["task", "create", "--title", "t", "-k", kb_name, "--format", "json"]
             )
         assert create.exit_code == 0, create.output
         assert json.loads(create.stdout)["created"] is True
+        # the groom asks that task create "writes tasks/t.md"
+        assert (kb_path / "tasks" / "t.md").is_file(), list((kb_path / "tasks").iterdir())
 
         with patch("pyrite.cli.context.load_config", return_value=config):
             health = runner.invoke(app, ["index", "health", "-k", kb_name])
         assert health.exit_code == 0, health.output
         undeclared = json.loads(health.stdout).get("undeclared_types", [])
-        assert not any(t == "task" for t in undeclared), undeclared
+        # undeclared_types holds {"kb", "type", "count"} dicts, not type names
+        assert not any(t["type"] == "task" for t in undeclared), undeclared
