@@ -42,12 +42,15 @@ def _init_kb(template: str, tmpdir: Path, config: PyriteConfig, *, builtin_only:
     kb_name = f"kb-{template}"
 
     def _no_plugin_kb_presets():
-        # get_registry() is a lazy singleton; hiding only the KB presets
-        # forces the built-in template copy while leaving the rest of the
-        # registry (validators, entry types) working for init's indexing step.
-        from pyrite.plugins import get_registry
-
-        return patch.object(get_registry(), "get_all_kb_presets", return_value={})
+        # Hiding only the KB presets forces the built-in template copy while
+        # leaving the rest of the registry (validators, entry types) working
+        # for init's indexing step. Named class-method target in
+        # pyrite.plugins (traceable) — not an unresolved instance attribute;
+        # see tests/test_tests_drive_the_surface_not_the_mock.py.
+        return patch(
+            "pyrite.plugins.registry.PluginRegistry.get_all_kb_presets",
+            return_value={},
+        )
 
     with (
         patch("pyrite.config.load_config", return_value=config),
