@@ -174,7 +174,10 @@ class TestUnknownModeRefusedRest:
         assert search.status_code == 200
         return search.json()["results"][0]["id"]
 
-    def test_rest_discover_neighbors_is_422(self, rest_api_env):
+    def test_rest_discover_neighbors_is_400(self, rest_api_env):
+        # REST answers 400 VALIDATION_FAILED for an unknown mode (maintainer
+        # decision 2026-10-17): REST validation errors answer 400 per
+        # docs/json-contracts.md, not the central handler's 422.
         client = rest_api_env["client"]
         response = client.get(
             "/api/links/discover-neighbors",
@@ -184,13 +187,13 @@ class TestUnknownModeRefusedRest:
                 "mode": "zzz",
             },
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
         detail = response.json()["detail"]
         assert detail["code"] == "VALIDATION_FAILED"
         for mode in VALID_MODES:
             assert mode in detail["message"]
 
-    def test_rest_batch_suggest_is_422(self, rest_api_env):
+    def test_rest_batch_suggest_is_400(self, rest_api_env):
         client = rest_api_env["client"]
         response = client.get(
             "/api/links/batch-suggest",
@@ -200,5 +203,5 @@ class TestUnknownModeRefusedRest:
                 "mode": "zzz",
             },
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
         assert response.json()["detail"]["code"] == "VALIDATION_FAILED"
