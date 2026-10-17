@@ -111,13 +111,14 @@ class TestUnknownModeRefused:
 
 
 class TestUnknownModeRefusedRest:
-    def test_rest_search_is_422(self, rest_api_env):
-        # REST answers 422 VALIDATION_FAILED for ValidationError (central
-        # handler), the same as #897's link-discovery endpoints -- not the
-        # groom's 400; that choice is the maintainer's call (#917 review).
+    def test_rest_search_is_400(self, rest_api_env):
+        # REST answers 400 VALIDATION_FAILED for an unknown mode (maintainer
+        # decision 2026-10-17): REST validation errors answer 400 per
+        # docs/json-contracts.md, not the central handler's 422 for
+        # ValidationError.
         client = rest_api_env["client"]
         response = client.get("/api/search", params={"q": "hello", "mode": "zzz"})
-        assert response.status_code == 422
+        assert response.status_code == 400
         detail = response.json()["detail"]
         assert detail["code"] == "VALIDATION_FAILED"
         for mode in VALID_MODES:
