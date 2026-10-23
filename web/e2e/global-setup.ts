@@ -39,7 +39,8 @@ import {
 	SEEDED_NOTES,
 	SEEDED_ORGANIZATIONS,
 	SEEDED_PEOPLE,
-	type SeededEntry
+	type SeededEntry,
+	type SeededLink
 } from './fixtures';
 import { derivePorts } from './ports';
 
@@ -219,16 +220,21 @@ function linksFor(entryId: string): string[] {
  * partial success (exit 3) and the link is silently dropped. Validate up
  * front so a future link that breaks the order fails here with a loud error
  * instead of seeding a world with silently missing links.
+ *
+ * `groups`/`links` default to the seed constants but are injectable so the
+ * guard itself is unit-testable (see `global-setup.test.ts`).
  */
-function validateLinkCreationOrder(): void {
+export function validateLinkCreationOrder(
+	groups: SeededEntry[][] = [SEEDED_PEOPLE, SEEDED_EVENTS, SEEDED_NOTES, SEEDED_ORGANIZATIONS],
+	links: SeededLink[] = SEEDED_LINKS
+): void {
 	const idToPosition = new Map<string, number>();
-	const groups: SeededEntry[][] = [SEEDED_PEOPLE, SEEDED_EVENTS, SEEDED_NOTES, SEEDED_ORGANIZATIONS];
 	for (const group of groups) {
 		for (const entry of group) {
 			idToPosition.set(entry.id, idToPosition.size);
 		}
 	}
-	for (const link of SEEDED_LINKS) {
+	for (const link of links) {
 		const sourcePos = idToPosition.get(link.source);
 		const targetPos = idToPosition.get(link.target);
 		if (sourcePos === undefined || targetPos === undefined) {

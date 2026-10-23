@@ -140,24 +140,28 @@ test.describe('Local Graph Panel', () => {
 		// Closed state: not the active/open styling.
 		await expect(graphBtn).not.toHaveClass(/border-blue-500/);
 
-		await graphBtn.click();
-		await expect(graphBtn).toHaveClass(/border-blue-500/);
-		await expect(page.getByRole('heading', { name: 'Local Graph' })).toBeVisible();
-		// The panel fetches /api/graph?center=<entry> on mount. Wait for that
-		// response before asserting on the empty state: the hidden check below
-		// is vacuous while the panel is still loading ("Loading..." shows, and
-		// 'No linked entries' is hidden trivially). With the response received,
-		// the hidden state proves the graph rendered — the entry has seeded
-		// links (#162), so the panel holds more than the center node and the
-		// cytoscape container is visible instead.
-		await page.waitForResponse(
+		// The panel fetches /api/graph?center=<entry> on mount. Register the
+		// response waiter BEFORE the click: registering after the click races
+		// the panel's fetch and can wait out the 30 s timeout.
+		const graphResponse = page.waitForResponse(
 			(r) =>
 				r.request().method() === 'GET' &&
 				r.url().includes('/api/graph') &&
 				r.url().includes('center=e2e-event-first-light')
 		);
-		await expect(page.getByText('No linked entries')).toBeHidden();
+		await graphBtn.click();
+		await graphResponse;
+		await expect(graphBtn).toHaveClass(/border-blue-500/);
+		await expect(page.getByRole('heading', { name: 'Local Graph' })).toBeVisible();
+		// Load-bearing positive check first: the cytoscape container is visible.
+		// The hidden check below is vacuous while the panel is still loading
+		// ("Loading..." shows, and 'No linked entries' is hidden trivially), so
+		// it only means something with the response received — which the
+		// awaited graphResponse above guarantees. The entry has seeded links
+		// (#162), so the panel holds more than the center node and the
+		// cytoscape container is visible instead.
 		await expect(page.locator('.graph-container')).toBeVisible();
+		await expect(page.getByText('No linked entries')).toBeHidden();
 
 		await graphBtn.click();
 		await expect(graphBtn).not.toHaveClass(/border-blue-500/);
