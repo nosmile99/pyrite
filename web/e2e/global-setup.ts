@@ -35,6 +35,7 @@ import {
 	SEEDED_COLLECTION,
 	SEEDED_DAILY_DATES,
 	SEEDED_EVENTS,
+	SEEDED_LINKS,
 	SEEDED_NOTES,
 	SEEDED_ORGANIZATIONS,
 	SEEDED_PEOPLE
@@ -192,6 +193,24 @@ function create(args: string[]): void {
 }
 
 /**
+ * `--link` args for one seeded entry, from `SEEDED_LINKS` (#162).
+ *
+ * The entry id derives from the title (`pyrite.schema.validators.generate_entry_id`),
+ * so the seed loops look up links by the same id fixtures use. The trap the
+ * groom for #162 names: a `--link` whose target does not exist yet makes the
+ * create a partial success (exit 3) with the link dropped — so the seed
+ * creates every link target before its source (events after people, notes
+ * after events) and lets execFileSync throw on any non-zero exit instead of
+ * ignoring it.
+ */
+function linksFor(entryId: string): string[] {
+	return SEEDED_LINKS.filter((l) => l.source === entryId).flatMap((l) => [
+		'--link',
+		`${l.target}:${l.relation}`
+	]);
+}
+
+/**
  * Marker so the seed runs exactly once per `playwright test` invocation.
  *
  * `playwright.config.ts` is evaluated in the main runner process AND again in
@@ -236,7 +255,13 @@ export function seedE2EWorld(): void {
 	pyrite(['init', '-t', 'research', '-p', E2E_KB_PATH, '-n', E2E_KB, '--no-examples']);
 
 	for (const p of SEEDED_PEOPLE) {
-		create(['-t', 'person', '--title', p.title, '-b', `Seeded person: ${p.title}.`, '--tags', 'e2e,person']);
+		create([
+			'-t', 'person',
+			'--title', p.title,
+			'-b', `Seeded person: ${p.title}.`,
+			'--tags', 'e2e,person',
+			...linksFor(p.id)
+		]);
 	}
 	for (const e of SEEDED_EVENTS) {
 		create([
@@ -244,14 +269,27 @@ export function seedE2EWorld(): void {
 			'--title', e.title,
 			'-d', e.date,
 			'-b', `Seeded event on ${e.date}.`,
-			'--tags', 'e2e,event'
+			'--tags', 'e2e,event',
+			...linksFor(e.id)
 		]);
 	}
 	for (const n of SEEDED_NOTES) {
-		create(['-t', 'note', '--title', n.title, '-b', `Seeded note: ${n.title}.`, '--tags', 'e2e,note']);
+		create([
+			'-t', 'note',
+			'--title', n.title,
+			'-b', `Seeded note: ${n.title}.`,
+			'--tags', 'e2e,note',
+			...linksFor(n.id)
+		]);
 	}
 	for (const o of SEEDED_ORGANIZATIONS) {
-		create(['-t', 'organization', '--title', o.title, '-b', `Seeded organization.`, '--tags', 'e2e,org']);
+		create([
+			'-t', 'organization',
+			'--title', o.title,
+			'-b', `Seeded organization.`,
+			'--tags', 'e2e,org',
+			...linksFor(o.id)
+		]);
 	}
 
 	// `collection` is not one of the `research` template's declared types, so it

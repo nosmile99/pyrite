@@ -104,6 +104,30 @@ export const SEEDED_DAILY_DATES: string[] = [
 	...DAILY_OFFSETS_SEEDED.map(dateOffsetFromToday)
 ];
 
+/**
+ * Links seeded into the world (#162). The seed creates each link's target
+ * before its source (`global-setup.ts`), because a link to an entry that
+ * does not exist yet is a partial create (exit 3) whose link is dropped.
+ */
+export interface SeededLink {
+	/** Entry id of the link source — created after the target. */
+	source: string;
+	/** Entry id of the link target. */
+	target: string;
+	relation: string;
+}
+
+export const SEEDED_LINKS: SeededLink[] = [
+	{ source: 'e2e-event-first-light', target: 'e2e-person-ada-lovelace', relation: 'related_to' },
+	{ source: 'e2e-event-second-signal', target: 'e2e-person-grace-hopper', relation: 'related_to' },
+	{ source: 'e2e-note-alpha', target: 'e2e-event-first-light', relation: 'related_to' }
+];
+
+/** Entry ids that take part in at least one seeded link (either direction). */
+export const SEEDED_LINKED_ENTRY_IDS: Set<string> = new Set(
+	SEEDED_LINKS.flatMap((l) => [l.source, l.target])
+);
+
 /** Every non-daily entry the seed creates. */
 export const SEEDED_ENTRIES: SeededEntry[] = [
 	...SEEDED_PEOPLE,
