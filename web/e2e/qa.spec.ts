@@ -30,14 +30,11 @@ test.describe('QA Dashboard Page', () => {
 		await expect(page.getByLabel('Filter by severity')).toBeVisible();
 	});
 
-	// The "QA with an issue" regime: the groom for this package expected the
-	// seeded world to have zero issues, but it does not. global-setup.ts
-	// seeds a few links between entries (#162), and qa_service.py's
+	// The "QA with an issue" regime: the seeded world links a few entries
+	// (#162, SEEDED_LINKS in fixtures.ts), and qa_service.py's
 	// `orphan_entry` rule fires for exactly every entry with no links in
 	// either direction — deterministically, on every run, one `orphan_entry`
-	// row per unlinked seeded entry (info severity). Asserting "zero issues"
-	// would be a false premise, not a real test; asserting the actual
-	// deterministic invariant is the real regime.
+	// row per unlinked seeded entry (info severity).
 	test('QA against the seeded world reports an orphan_entry issue for every unlinked seeded entry', async ({
 		page
 	}) => {

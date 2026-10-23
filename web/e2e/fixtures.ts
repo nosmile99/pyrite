@@ -105,9 +105,13 @@ export const SEEDED_DAILY_DATES: string[] = [
 ];
 
 /**
- * Links seeded into the world (#162). The seed creates each link's target
- * before its source (`global-setup.ts`), because a link to an entry that
- * does not exist yet is a partial create (exit 3) whose link is dropped.
+ * Links seeded into the world (#162) — the FULL link set for the e2e world.
+ * The seed creates each link's target before its source (`global-setup.ts`),
+ * because a link to an entry that does not exist yet is a partial create
+ * (exit 3) whose link is dropped. When adding or removing a link here, update
+ * the graph and QA expectations together: `graph.spec.ts` asserts
+ * `edgeKeys.size === SEEDED_LINKS.length`, and `qa.spec.ts` treats exactly the
+ * ids in `SEEDED_LINKED_ENTRY_IDS` as non-orphans.
  */
 export interface SeededLink {
 	/** Entry id of the link source — created after the target. */

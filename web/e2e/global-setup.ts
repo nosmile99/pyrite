@@ -38,7 +38,8 @@ import {
 	SEEDED_LINKS,
 	SEEDED_NOTES,
 	SEEDED_ORGANIZATIONS,
-	SEEDED_PEOPLE
+	SEEDED_PEOPLE,
+	type SeededEntry
 } from './fixtures';
 import { derivePorts } from './ports';
 
@@ -211,6 +212,42 @@ function linksFor(entryId: string): string[] {
 }
 
 /**
+ * Creation order of the seed loops in `seedE2EWorld()` below: people first,
+ * then events, notes, organizations. A `--link` whose target's group is
+ * created after the source's group — or whose target comes later inside the
+ * same group — names an entry that does not exist yet, so the create is a
+ * partial success (exit 3) and the link is silently dropped. Validate up
+ * front so a future link that breaks the order fails here with a loud error
+ * instead of seeding a world with silently missing links.
+ */
+function validateLinkCreationOrder(): void {
+	const idToPosition = new Map<string, number>();
+	const groups: SeededEntry[][] = [SEEDED_PEOPLE, SEEDED_EVENTS, SEEDED_NOTES, SEEDED_ORGANIZATIONS];
+	for (const group of groups) {
+		for (const entry of group) {
+			idToPosition.set(entry.id, idToPosition.size);
+		}
+	}
+	for (const link of SEEDED_LINKS) {
+		const sourcePos = idToPosition.get(link.source);
+		const targetPos = idToPosition.get(link.target);
+		if (sourcePos === undefined || targetPos === undefined) {
+			throw new Error(
+				`seed: SEEDED_LINKS references an unknown entry id ` +
+					`(source=${link.source}, target=${link.target})`
+			);
+		}
+		if (targetPos >= sourcePos) {
+			throw new Error(
+				`seed: link ${link.source} → ${link.target} is uncreatable — the target ` +
+					`is created after its source, so the --link target would not exist yet ` +
+					`(partial create, exit 3, link dropped). Reorder the seed loops or the link.`
+			);
+		}
+	}
+}
+
+/**
  * Marker so the seed runs exactly once per `playwright test` invocation.
  *
  * `playwright.config.ts` is evaluated in the main runner process AND again in
@@ -245,6 +282,10 @@ export function seedE2EWorld(): void {
 	// are already held by a foreign process (acceptance criterion #2).
 	preflightPort(E2E_BACKEND_PORT, 'base e2e backend');
 	preflightPort(E2E_VITE_PORT, 'base e2e Vite dev server');
+
+	// Fail fast on an uncreatable link (target created after its source)
+	// before the seed touches the data dir — see validateLinkCreationOrder.
+	validateLinkCreationOrder();
 
 	// A fresh world every run. Without this, a spec that wrote in run N would
 	// still be in the world in run N+1, which is the shared-state failure mode
